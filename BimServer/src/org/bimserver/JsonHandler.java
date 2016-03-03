@@ -23,6 +23,7 @@ import java.io.Writer;
 import javax.servlet.http.HttpServletRequest;
 
 import org.bimserver.models.log.AccessMethod;
+import org.bimserver.nfc.NfcHandler;
 import org.bimserver.shared.exceptions.ServerException;
 import org.bimserver.shared.exceptions.ServiceException;
 import org.bimserver.shared.exceptions.UserException;
@@ -89,6 +90,11 @@ public class JsonHandler {
 		long s = System.nanoTime();
 		String interfaceName = request.get("interface").getAsString();
 		String methodName = request.get("method").getAsString();
+		if(interfaceName.equals("handleNfcMethods")) {
+			NfcHandler nfcHandler = new NfcHandler(bimServer);
+			nfcHandler.handleNfcMethods(request, jsonToken, httpRequest, writer);
+			return;
+		}
 		SService sService = bimServer.getServicesMap().getByName(interfaceName);
 		if (sService == null) {
 			sService = bimServer.getServicesMap().getBySimpleName(interfaceName);
