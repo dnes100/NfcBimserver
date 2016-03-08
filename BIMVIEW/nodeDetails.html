@@ -154,13 +154,13 @@ function NodeDetails(containerDiv, rightPanelPage, projectPage, main) {
 	this.showTagSelectBox = function(){
 		var prevTd = containerDiv.find(".nfcTagIdTd").clone(true);
 	
-		var selectBox = '<select class="form-control" id="nfcTagSelect">';
+		var selectBox = '<div class="form-inline"><div class="form-group"><select class="form-control input-sm" id="nfcTagSelect"><option value ="">Select Tag to assign</option>';
 		if(othis.unassignedNfcTags){
 			$.each(othis.unassignedNfcTags, function(index, tagElement){
 				selectBox += '<option value="' + tagElement.nfcTagId + '">' + tagElement.nfcTagId + '</option>';
 			});
 		}
-		selectBox += "</select><button class='btn btn-primary assignNfcTag'>Assign Tag</button><button class='btn btn-primary cancelSelect'>Cancel</button>";
+		selectBox += "</select></div><button class='btn btn-default assignNfcTag' style='margin:0px 6px;'>Assign Tag</button><button class='btn btn-default cancelSelect' style='margin:0px 6px;'>Cancel</button></div>";
 		containerDiv.find(".nfcTagIdTd").html(selectBox);
 		containerDiv.find(".cancelSelect").click(function(){
 			containerDiv.find(".nfcTagIdTd").replaceWith(prevTd);
@@ -169,6 +169,8 @@ function NodeDetails(containerDiv, rightPanelPage, projectPage, main) {
 	}
 	
 	this.assignNfcTag = function(prevTd){
+		var nfcTagId = containerDiv.find("#nfcTagSelect").val();
+		if(!nfcTagId) return;
 		var parameters = {
 			  "token": Global.bimServerApi.token,
 			  "request": {
@@ -176,7 +178,7 @@ function NodeDetails(containerDiv, rightPanelPage, projectPage, main) {
 				"method": "assignTagIdToIfcNode",
 				"parameters": {
 					"ifcNodeId" : othis.ifcNodeId,
-					"nfcTagId": containerDiv.find("#nfcTagSelect").val()
+					"nfcTagId": nfcTagId
 					}
 			  }
 		}
