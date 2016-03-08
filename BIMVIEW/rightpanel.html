@@ -13,6 +13,7 @@
 			<label class="btn btn-default usersLink"><input type="radio" name="options" id="option2" autocomplete="off">Users</label>
 			<label class="btn btn-default modelCheckersLink"><input type="radio" name="options" id="option2" autocomplete="off">Model Checkers</label>
 			<label class="btn btn-default logLink"><input type="radio" name="options" id="option2" autocomplete="off">Log</label>
+			<label class="btn btn-default nodeDetailsLink"><input type="radio" name="options" id="option2" autocomplete="off">Node Details</label>
 		</div>
 		<div class="panel-body">
 			<div class="content ih">
@@ -163,6 +164,8 @@
 			  	<div class="tab-pane surfer initialhide" id="surfer">
 				</div>
 				<div class="tab-pane logholder initialhide" id="log">
+				</div>
+				<div class="tab-pane nodeDetailsHolder initialhide" id="nodeDetails">
 				</div>
 			</div>
 			<div class="initialhide dropdowntemplaterevision">
@@ -919,6 +922,14 @@ function RightPanel(containerDiv, main, project, projectPage) {
 			return new Log($(this), settings, main);
 		}, callback);
 	};
+	
+	this.loadNodeDetails = function(){
+		othis.tabChanger.changeTab($(".nodeDetailsLink"), "nodeDetails.html", $(".nodeDetailsHolder"), function(){
+			console.log("rightpanel nodeDetails Tab");
+			pushHistory({page: "Project", poid: othis.project.oid, tab: "nodeDetails"}, "Project");
+			return new NodeDetails($(this), othis, projectPage, main);
+		});
+	}
 
 	this.addSubProjectClick = function(event) {
 		main.showAddProject(null, othis.project, true);
@@ -986,6 +997,7 @@ function RightPanel(containerDiv, main, project, projectPage) {
 	}, true);});
 	containerDiv.find(".usersLink").click(function(){othis.loadUsers(null, true);});
 	containerDiv.find(".logLink").click(function(){othis.loadLog(null, true);});
+	containerDiv.find(".nodeDetailsLink").click(function(){othis.loadNodeDetails();});
 
 	containerDiv.find(".addUserToProjectDiv button").click(othis.addUserToProject);
 	

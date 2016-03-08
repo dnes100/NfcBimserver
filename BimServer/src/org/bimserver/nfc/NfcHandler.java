@@ -37,8 +37,12 @@ public class NfcHandler {
 			saveNfcData(request, writer);
 		} else if(methodName.equals("getNfcTagData")){
 			getNfcTagData(writer);
+		} else if(methodName.equals("getNfcReadersData")){
+			getNfcReadersData(writer);
 		} else if(methodName.equals("assignTagIdToIfcNode")){
 			assignTagIdToIfcNode(request, writer);
+		} else if(methodName.equals("getNfcTagDataByIfcNodeId")){
+			getNfcTagDataByIfcNodeId(request, writer);
 		}
 	}
 	
@@ -48,7 +52,7 @@ public class NfcHandler {
 		String readerId = parameters.get("readerId").getAsString();
 		String readerName = parameters.get("readerName").getAsString();
 		String readerLocation = parameters.get("readerLocation").getAsString();
-		String tagId = parameters.get("tagId").getAsString();
+		String nfcTagId = parameters.get("nfcTagId").getAsString();
 		
 		Map<String, String> currentReaderEntry = this.nfcReadersMap.get(readerId);
 		if(currentReaderEntry == null) {
@@ -59,13 +63,13 @@ public class NfcHandler {
 		currentReaderEntry.put("readerLocation", readerLocation);
 		this.nfcReadersMap.put(readerId, currentReaderEntry);
 		
-		Map<String, String> currentTagEntry = this.nfcTagsMap.get(tagId);
+		Map<String, String> currentTagEntry = this.nfcTagsMap.get(nfcTagId);
 		if(currentTagEntry == null) {
 			currentTagEntry = new HashMap<String, String>();
 		}
-		currentTagEntry.put("tagId", tagId);
+		currentTagEntry.put("nfcTagId", nfcTagId);
 		currentTagEntry.put("ifcNodeId", "");
-		currentTagEntry.put("LatestLocation", readerLocation);
+		currentTagEntry.put("latestLocation", readerLocation);
 		String trackedLocations = currentTagEntry.get("trackedLocations");
 		if((trackedLocations == null) || trackedLocations.isEmpty()){
 			trackedLocations = readerLocation;
@@ -73,7 +77,7 @@ public class NfcHandler {
 			trackedLocations += "|" + readerLocation;
 		}
 		currentTagEntry.put("trackedLocations", trackedLocations);
-		this.nfcTagsMap.put(tagId, currentTagEntry);
+		this.nfcTagsMap.put(nfcTagId, currentTagEntry);
 		
 		
 		
@@ -86,7 +90,7 @@ public class NfcHandler {
 		
 		writer.beginObject();
 		writer.name("readerId").value(readerId);
-		writer.name("tagId").value(tagId);
+		writer.name("nfcTagId").value(nfcTagId);
 		writer.endObject();
 		writer.endObject();
 	}
@@ -99,13 +103,51 @@ public class NfcHandler {
 		for (Map.Entry<String, Map<String, String>> entry : this.nfcTagsMap.entrySet()){
 			Map<String, String> currentTagMap = entry.getValue();
 			writer.beginObject();
-			writer.name("tagId").value(currentTagMap.get("tagId"));
+			writer.name("nfcTagId").value(currentTagMap.get("nfcTagId"));
 			writer.name("ifcNodeId").value(currentTagMap.get("ifcNodeId"));
-			writer.name("LatestLocation").value(currentTagMap.get("LatestLocation"));
+			writer.name("latestLocation").value(currentTagMap.get("latestLocation"));
 			writer.name("trackedLocations").value(currentTagMap.get("trackedLocations"));
 			writer.endObject();
 		}
 		writer.endArray();
+		writer.endObject();
+	}
+	
+	private void getNfcReadersData(JsonWriter writer) throws IOException{
+		LOGGER.info("NfcHandler | handleNfcMethods | getNfcReadersData");
+		writer.beginObject();
+		writer.name("result");
+		writer.beginArray();
+		for (Map.Entry<String, Map<String, String>> entry : this.nfcReadersMap.entrySet()){
+			Map<String, String> currentTagMap = entry.getValue();
+			writer.beginObject();
+			writer.name("readerId").value(currentTagMap.get("readerId"));
+			writer.name("readerName").value(currentTagMap.get("readerName"));
+			writer.name("readerLocation").value(currentTagMap.get("readerLocation"));
+			writer.endObject();
+		}
+		writer.endArray();
+		writer.endObject();
+	}
+	
+	private void getNfcTagDataByIfcNodeId(JsonObject request, JsonWriter writer) throws IOException{
+		LOGGER.info("NfcHandler | handleNfcMethods | getNfcTagDataByIfcNodeId");
+		JsonObject parameters = request.getAsJsonObject("parameters");
+		String ifcNodeId = parameters.get("ifcNodeId").getAsString();
+		
+		writer.beginObject();
+		writer.name("result");
+		writer.beginObject();
+		for (Map.Entry<String, Map<String, String>> entry : this.nfcTagsMap.entrySet()){
+			Map<String, String> currentTagMap = entry.getValue();
+			if(currentTagMap.get("ifcNodeId").equals(ifcNodeId)){
+				writer.name("nfcTagId").value(currentTagMap.get("nfcTagId"));
+				writer.name("ifcNodeId").value(currentTagMap.get("ifcNodeId"));
+				writer.name("latestLocation").value(currentTagMap.get("latestLocation"));
+				writer.name("trackedLocations").value(currentTagMap.get("trackedLocations"));
+			}
+		}
+		writer.endObject();
 		writer.endObject();
 	}
 	
@@ -114,17 +156,28 @@ public class NfcHandler {
 		
 		JsonObject parameters = request.getAsJsonObject("parameters");
 		String ifcNodeId = parameters.get("ifcNodeId").getAsString();
-		String tagId = parameters.get("tagId").getAsString();
+		String nfcTagId = parameters.get("nfcTagId").getAsString();
 		
-		Map<String, String> currentTagMap = this.nfcTagsMap.get(tagId);
+		for (Map.Entry<String, Map<String, String>> entry : this.nfcTagsMap.entrySet()){
+			Map<String, String> currentTagMap = entry.getValue();
+			if(currentTagMap.get("ifcNodeId").equals(ifcNodeId)){
+				currentTagMap.put("ifcNodeId", "");
+				currentTagMap.put("latestLocation", "");
+				currentTagMap.put("trackedLocations", "");
+			}
+		}
+		
+		Map<String, String> currentTagMap = this.nfcTagsMap.get(nfcTagId);
 		currentTagMap.put("ifcNodeId", ifcNodeId);
+		currentTagMap.put("latestLocation", "");
+		currentTagMap.put("trackedLocations", "");
 		writeToNfcTagFile();
 		
 		writer.beginObject();
 		writer.name("result");
 		writer.beginObject();
 		writer.name("ifcNodeId").value(ifcNodeId);
-		writer.name("tagId").value(tagId);
+		writer.name("nfcTagId").value(nfcTagId);
 		writer.endObject();
 		writer.endObject();
 		
@@ -152,7 +205,7 @@ public class NfcHandler {
 		for(String line : list){
 			Map<String, String> tempMap = new HashMap<String, String>();
 			if(line.startsWith("//")) continue;
-			String[] lineArr = line.split(",");
+			String[] lineArr = line.split(",", -1);
 			tempMap.put("readerId", lineArr[0]);
 			tempMap.put("readerName", lineArr[1]);
 			tempMap.put("readerLocation", lineArr[2]);
@@ -164,37 +217,38 @@ public class NfcHandler {
 		for(String line : list){
 			Map<String, String> tempMap = new HashMap<String, String>();
 			if(line.startsWith("//")) continue;
-			String[] lineArr = line.split(",");
-			tempMap.put("tagId", lineArr[0]);
+			String[] lineArr = line.split(",", -1);
+			tempMap.put("nfcTagId", lineArr[0]);
 			tempMap.put("ifcNodeId", lineArr[1]);
-			tempMap.put("LatestLocation", lineArr[2]);
+			tempMap.put("latestLocation", lineArr[2]);
 			tempMap.put("trackedLocations", lineArr[3]);
 			
-			this.nfcTagsMap.put(tempMap.get("tagId"), tempMap);
+			this.nfcTagsMap.put(tempMap.get("nfcTagId"), tempMap);
 		}
 	}
 	
 	private void writeToNfcReaderFile() throws IOException{
-		String content = "//readerId, readerName, readerLocation\n";
+		String content = "//readerId, readerName, readerLocation";
 		for (Map.Entry<String, Map<String, String>> entry : this.nfcReadersMap.entrySet()){
 			Map<String, String> tempMap = entry.getValue();
+			content += "\n";
 			content += tempMap.get("readerId");
 			content += "," + tempMap.get("readerName");
 			content += "," + tempMap.get("readerLocation");
-			content += "\n";
 		}
 		FileUtils.writeStringToFile(new File(this.readersFilePath), content, "UTF-8");
 	}
 	
 	private void writeToNfcTagFile() throws IOException{
-		String content = "//tagId, ifcNodeId, latestLocation, trackedLocations\n";
+		String content = "//nfcTagId, ifcNodeId, latestLocation, trackedLocations";
 		for (Map.Entry<String, Map<String, String>> entry : this.nfcTagsMap.entrySet()){
 			Map<String, String> tempMap = entry.getValue();
-			content += tempMap.get("tagId");
-			content += "," + tempMap.get("ifcNodeId");
-			content += "," + tempMap.get("LatestLocation");
-			content += "," + tempMap.get("trackedLocations");
 			content += "\n";
+			content += tempMap.get("nfcTagId");
+			content += "," + tempMap.get("ifcNodeId");
+			content += "," + tempMap.get("latestLocation");
+			content += "," + tempMap.get("trackedLocations");
+			
 		}
 		FileUtils.writeStringToFile(new File(this.tagsFilePath), content, "UTF-8");
 	}

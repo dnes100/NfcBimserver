@@ -1,0 +1,209 @@
+<div class="nodeDetails">
+	<div class="noNode well well-sm">
+		No IFC node selected.
+	</div>
+
+	<table class="table table-striped ifcNodeDetails initialhide">
+		<thead>
+			<tr>
+				<th colspan="2">IFC Node Details</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>IFC Node ID</td>
+				<td id="ifcNodeId"></td>
+			</tr>
+			<tr>
+				<td>Name</td>
+				<td id="ifcNodeName"></td>
+			</tr>
+			<tr>
+				<td>NFC Tag ID</td>
+				<td class="nfcTagIdTd"><span id="nfcTagId"></span><span class="btn btn-default editTagBtn" style="margin-left:20px;"><span class="glyphicon glyphicon-pencil"></span></td>
+			</tr>
+			<tr>
+				<td>Latest Location</td>
+				<td id="latestLocation"></td>
+			</tr>
+			<tr>
+				<td>Tracked Locations</td>
+				<td id="trackedLocations"></td>
+			</tr>
+		</tbody>
+	</table>
+	
+	<table class="table table-striped nfcReaders">
+		<thead>
+			<tr>
+				<th colspan="3">NFC Readers</th>
+			</tr>
+			<tr>
+				<th>Reader ID</th>
+				<th>Reader Name</th>
+				<th>Reader Location</th>
+			</tr>
+		</thead>
+		<tbody></tbody>
+	</table>
+		
+</div>
+<script>
+function NodeDetails(containerDiv, rightPanelPage, projectPage, main) {
+	othis = this;
+	othis.ifcNodeId = projectPage.navigator.projecttree.selectedId;
+	othis.nodeData = null;
+	othis.currentNfcTag = null;
+	othis.nfcTags = null;
+	othis.unassignedNfcTags = [];
+	othis.nfcReaders = null;
+	
+	this.updateNodeDetails = function(){
+		othis.getNfcReadersData();
+		if(othis.ifcNodeId){
+			othis.loadNodeData();
+			othis.loadNfcTagData();
+			$(".noNode").hide();
+			$(".ifcNodeDetails").show();
+		} else {
+			$(".noNode").show();
+			$(".ifcNodeDetails").hide();
+		}
+	}
+	
+	this.loadNodeData = function(){
+		var params = {roid: rightPanelPage.project.lastRevisionId, oid: othis.ifcNodeId};
+		Global.bimServerApi.call("Bimsie1LowLevelInterface", "getDataObjectByOid", params ,function(data){
+			othis.nodeData = data;
+			$("#ifcNodeId").text(data.oid);
+			$("#ifcNodeName").text(data.name);
+		});
+	}
+	
+	this.loadNfcTagData = function(){
+		var parameters = {
+			  "token": Global.bimServerApi.token,
+			  "request": {
+				"interface": "handleNfcMethods", 
+				"method": "getNfcTagData"
+			  }
+		}
+
+		$.ajax({
+			url: Global.bimServerApi.address,
+			type: "POST",
+			contentType: 'application/json; charset=UTF-8',
+			data: JSON.stringify(parameters),
+			dataType: "json",
+			success: function(data){
+				othis.nfcTags = data.response.result;
+				othis.currentNfcTag = null;
+				othis.unassignedNfcTags = [];
+				$.each(data.response.result, function(index, tagElement){
+					if(tagElement.ifcNodeId == othis.ifcNodeId){
+						othis.currentNfcTag = tagElement;
+					} else if(!tagElement.ifcNodeId){
+						othis.unassignedNfcTags.push(tagElement);
+					}
+				});
+				if(othis.currentNfcTag){
+					$("#nfcTagId").text(othis.currentNfcTag.nfcTagId);
+					$("#latestLocation").text(othis.currentNfcTag.latestLocation);
+					$("#trackedLocations").text(othis.currentNfcTag.trackedLocations);
+				} else {
+					$("#nfcTagId").text("");
+					$("#latestLocation").text("");
+					$("#trackedLocations").text("");
+				}
+			}
+		});
+
+	}
+	
+	this.getNfcReadersData = function(){
+		var parameters = {
+			  "token": Global.bimServerApi.token,
+			  "request": {
+				"interface": "handleNfcMethods", 
+				"method": "getNfcReadersData"
+			  }
+		}
+		$.ajax({
+			url: Global.bimServerApi.address,
+			type: "POST",
+			contentType: 'application/json; charset=UTF-8',
+			data: JSON.stringify(parameters),
+			dataType: "json",
+			success: function(data){
+				othis.nfcReaders = data.response.result;
+				
+				if($.isEmptyObject(data.response.result)){
+					$(".nfcReaders").find("tbody").html("<tr><td colspan=3>No Reader Data.</td></tr>");
+				} else {
+					var rows = "";
+					$.each(data.response.result, function(index, readerElement){
+						var tr = "<tr><td>" + readerElement.readerId + "</td><td>" + readerElement.readerName + "</td><td>" + readerElement.readerLocation + "</td></tr>";
+						rows += tr;
+					});
+					$(".nfcReaders").find("tbody").html(rows);
+				}
+			}
+		});
+	}
+	
+	this.showTagSelectBox = function(){
+		var prevTd = containerDiv.find(".nfcTagIdTd").clone(true);
+	
+		var selectBox = '<select class="form-control" id="nfcTagSelect">';
+		if(othis.unassignedNfcTags){
+			$.each(othis.unassignedNfcTags, function(index, tagElement){
+				selectBox += '<option value="' + tagElement.nfcTagId + '">' + tagElement.nfcTagId + '</option>';
+			});
+		}
+		selectBox += "</select><button class='btn btn-primary assignNfcTag'>Assign Tag</button><button class='btn btn-primary cancelSelect'>Cancel</button>";
+		containerDiv.find(".nfcTagIdTd").html(selectBox);
+		containerDiv.find(".cancelSelect").click(function(){
+			containerDiv.find(".nfcTagIdTd").replaceWith(prevTd);
+		});
+		containerDiv.find(".assignNfcTag").off("click").click(prevTd, function(){ othis.assignNfcTag(prevTd); });
+	}
+	
+	this.assignNfcTag = function(prevTd){
+		var parameters = {
+			  "token": Global.bimServerApi.token,
+			  "request": {
+				"interface": "handleNfcMethods", 
+				"method": "assignTagIdToIfcNode",
+				"parameters": {
+					"ifcNodeId" : othis.ifcNodeId,
+					"nfcTagId": containerDiv.find("#nfcTagSelect").val()
+					}
+			  }
+		}
+		$.ajax({
+			url: Global.bimServerApi.address,
+			type: "POST",
+			contentType: 'application/json; charset=UTF-8',
+			data: JSON.stringify(parameters),
+			dataType: "json",
+			success: function(data){
+				prevTd.find("#nfcTagId").text(data.response.result.nfcTagId);
+				containerDiv.find(".nfcTagIdTd").replaceWith(prevTd);
+			}
+		});
+	}
+	
+	this.selected = function(origin, groupId, id){
+		if(othis.ifcNodeId == id){
+			return;
+		} else {
+			othis.ifcNodeId = id;
+			othis.updateNodeDetails();
+		}
+	}
+	
+	this.updateNodeDetails();
+	projectPage.selectListeners.register(othis.selected);
+	containerDiv.find(".editTagBtn").click(function(){ othis.showTagSelectBox(); });
+	
+}
