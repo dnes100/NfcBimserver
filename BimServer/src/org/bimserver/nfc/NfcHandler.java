@@ -68,7 +68,7 @@ public class NfcHandler {
 			currentTagEntry = new HashMap<String, String>();
 		}
 		currentTagEntry.put("nfcTagId", nfcTagId);
-		currentTagEntry.put("ifcNodeId", "");
+		if(currentTagEntry.get("ifcNodeId") == null) currentTagEntry.put("ifcNodeId", "");
 		currentTagEntry.put("latestLocation", readerLocation);
 		String trackedLocations = currentTagEntry.get("trackedLocations");
 		if((trackedLocations == null) || trackedLocations.isEmpty()){
