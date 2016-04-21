@@ -2,6 +2,7 @@ package org.bimserver.nfc;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,10 @@ public class NfcHandler {
 			assignTagIdToIfcNode(request, writer);
 		} else if(methodName.equals("getNfcTagDataByIfcNodeId")){
 			getNfcTagDataByIfcNodeId(request, writer);
+		} else if(methodName.equals("registerNfcReader")){
+			registerNfcReader(request, writer);
+		} else if(methodName.equals("registerNfcTag")){
+			registerNfcTag(request, writer);
 		}
 	}
 	
@@ -56,9 +61,10 @@ public class NfcHandler {
 		
 		Map<String, String> currentReaderEntry = this.nfcReadersMap.get(readerId);
 		if(currentReaderEntry == null) {
+			//this should never occur.
 			currentReaderEntry = new HashMap<String, String>();
 		}
-		currentReaderEntry.put("readerId", readerId);
+		//currentReaderEntry.put("readerId", readerId);
 		currentReaderEntry.put("readerName", readerName);
 		currentReaderEntry.put("readerLocation", readerLocation);
 		this.nfcReadersMap.put(readerId, currentReaderEntry);
@@ -251,6 +257,84 @@ public class NfcHandler {
 			
 		}
 		FileUtils.writeStringToFile(new File(this.tagsFilePath), content, "UTF-8");
+	}
+	
+	private void registerNfcReader(JsonObject request, JsonWriter writer) throws IOException{
+		LOGGER.info("NfcHandler | handleNfcMethods | registerNfcReader");
+		JsonObject parameters = request.getAsJsonObject("parameters");
+		String readerName = parameters.get("readerName").getAsString();
+		String readerLocation = parameters.get("readerLocation").getAsString();
+		String readerId = generateReaderId();
+		
+		Map<String, String> newReaderMap = new HashMap<String, String>();
+		newReaderMap.put("readerId", readerId);
+		newReaderMap.put("readerName", readerName);
+		newReaderMap.put("readerLocation", readerLocation);
+		this.nfcReadersMap.put(readerId, newReaderMap);
+		writeToNfcReaderFile();
+		
+		writer.beginObject();
+		writer.name("result");
+		writer.beginObject();
+		writer.name("readerId").value(readerId);
+		writer.name("readerName").value(readerName);
+		writer.name("readerLocation").value(readerLocation);
+		writer.endObject();
+		writer.endObject();
+	}
+	
+	private void registerNfcTag(JsonObject request, JsonWriter writer) throws IOException{
+		LOGGER.info("NfcHandler | handleNfcMethods | registerNfcTag");
+		String nfcTagId = generateTagId();
+		
+		Map<String, String>  newTagMap = new HashMap<String, String>();
+		newTagMap.put("nfcTagId", nfcTagId);
+		newTagMap.put("ifcNodeId", "");
+		newTagMap.put("latestLocation", "");
+		newTagMap.put("trackedLocations", "");
+		this.nfcTagsMap.put(nfcTagId, newTagMap);
+		writeToNfcTagFile();
+		
+		writer.beginObject();
+		writer.name("result");
+		writer.beginObject();
+		writer.name("nfcTagId").value(nfcTagId);
+		writer.endObject();
+		writer.endObject();
+	}
+	
+	private String generateReaderId(){
+		String readerId;
+		Integer randId;
+		ArrayList<String> existingIds = new ArrayList<String>();
+		for (Map.Entry<String, Map<String, String>> entry : this.nfcReadersMap.entrySet()){
+			Map<String, String> tempMap = entry.getValue();
+			existingIds.add(tempMap.get("readerId"));
+			
+		}
+		do {
+			randId = (int) Math.abs(Math.random() * 100000);
+			readerId = "r" + randId.toString();
+		} while(existingIds.contains(readerId));
+		
+		return readerId.toString();
+	}
+	
+	private String generateTagId(){
+		String tagId;
+		Integer randId;
+		ArrayList<String> existingIds = new ArrayList<String>();
+		for (Map.Entry<String, Map<String, String>> entry : this.nfcTagsMap.entrySet()){
+			Map<String, String> tempMap = entry.getValue();
+			existingIds.add(tempMap.get("nfcTagId"));
+			
+		}
+		do {
+			randId = (int) Math.abs(Math.random() * 100000);
+			tagId = "t" + randId.toString();
+		} while(existingIds.contains(tagId));
+		
+		return tagId.toString();
 	}
 	
 }
